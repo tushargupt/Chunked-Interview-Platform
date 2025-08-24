@@ -12,7 +12,7 @@ class ChunkService {
     try {
       await fs.mkdir(this.baseStorageDir, { recursive: true });
     } catch (error) {
-      console.error('Failed to create storage directory:', error);
+      console.error('create directory error:', error);
     }
   }
 
@@ -44,7 +44,6 @@ class ChunkService {
       };
 
     } catch (error) {
-      console.error('Save chunk error:', error);
       throw new Error(`Failed to save chunk: ${error.message}`);
     }
   }
@@ -86,7 +85,6 @@ class ChunkService {
       };
 
     } catch (error) {
-      console.error('Combine chunks error:', error);
       throw new Error(`Failed to combine chunks: ${error.message}`);
     }
   }
@@ -100,7 +98,7 @@ class ChunkService {
         await fs.unlink(path.join(storageDir, file));
       }
     } catch (error) {
-      console.error('Cleanup chunks error:', error);
+      console.error('Cleanup error:', error);
     }
   }
 
@@ -119,7 +117,6 @@ class ChunkService {
         };
       }).sort((a, b) => a.chunkIndex - b.chunkIndex);
     } catch (error) {
-      console.error('Get interview chunks error:', error);
       return [];
     }
   }
@@ -130,7 +127,6 @@ class ChunkService {
       await fs.rmdir(storageDir, { recursive: true });
       return true;
     } catch (error) {
-      console.error('Delete chunks error:', error);
       return false;
     }
   }

@@ -72,8 +72,6 @@ export default function ChunkedRecorder({
     try {
       if (data.size === 0) return false;
 
-      console.log(`📦 Sending chunk ${chunkIndex} (${data.size} bytes) to server`);
-
       const formData = new FormData();
       formData.append('chunk', data);
       formData.append('chunkIndex', chunkIndex.toString());
@@ -86,14 +84,11 @@ export default function ChunkedRecorder({
         }
       );
 
-      console.log(`📡 Chunk ${chunkIndex} response status:`, response.status);
-
       if (!response.ok) {
         throw new Error(`Upload failed: ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log(`✅ Chunk ${chunkIndex} upload result:`, result);
       
       if (result.success) {
         setRecordingState(prev => ({
@@ -105,7 +100,7 @@ export default function ChunkedRecorder({
       
       return false;
     } catch (error) {
-      console.error(`❌ Chunk ${chunkIndex} upload error:`, error);
+      console.error(`upload error`, error);
       return false;
     }
   };
@@ -122,19 +117,16 @@ export default function ChunkedRecorder({
     
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) {
-        console.log(`🎥 Using MIME type: ${type}`);
         return type;
       }
     }
     
-    console.log(`🎥 Fallback to: video/webm`);
     return 'video/webm';
   };
 
   // Initialize media stream
   const initializeMedia = useCallback(async () => {
   try {
-    console.log('🎬 Initializing media stream...');
     setError(null);
     
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -150,14 +142,7 @@ export default function ChunkedRecorder({
       }
     });
 
-    console.log('✅ Media stream obtained successfully');
-    console.log('📹 Video tracks:', stream.getVideoTracks().length);
-    console.log('🎵 Audio tracks:', stream.getAudioTracks().length);
-
-    streamRef.current = stream;
-
-    console.log('🎥 Setting up video preview...', videoRef.current); // This should now not be null
-    
+    streamRef.current = stream;    
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
       console.log('📺 Video element connected to stream');
@@ -165,7 +150,7 @@ export default function ChunkedRecorder({
 
     setMediaReady(true);
   } catch (err) {
-    console.error('❌ Media initialization error:', err);
+    console.error('media initialization error', err);
     const errorMsg = 'Failed to access camera and microphone. Please ensure permissions are granted.';
     setError(errorMsg);
     onError?.(errorMsg);
@@ -174,12 +159,10 @@ export default function ChunkedRecorder({
 
 // Initialize media on mount
 useEffect(() => {
-  console.log('🔄 Component mounted, initializing...');
   initializeMedia();
   
   return () => {
     if (streamRef.current) {
-      console.log('🛑 Cleaning up media stream');
       streamRef.current.getTracks().forEach(track => track.stop());
     }
   };
@@ -188,12 +171,10 @@ useEffect(() => {
   // Start recording
   const startRecording = useCallback(async () => {
     if (!streamRef.current || !mediaReady) {
-      console.log('❌ Cannot start recording - stream or media not ready');
       return;
     }
 
     try {
-      console.log(`🎬 Starting recording for interview: ${interviewId}`);
 
       // Initialize recording session on server
       const response = await fetch(
@@ -204,14 +185,13 @@ useEffect(() => {
         }
       );
 
-      console.log('🌐 Server start response status:', response.status);
 
       if (!response.ok) {
         throw new Error('Failed to start recording session on server');
       }
 
       const serverResult = await response.json();
-      console.log('✅ Server start response:', serverResult);
+      console.log('response:', serverResult);
 
       // Clear previous data
       recordedChunksRef.current = [];
@@ -227,15 +207,9 @@ useEffect(() => {
         audioBitsPerSecond: 128000
       });
 
-      console.log('🎥 MediaRecorder created with:', {
-        mimeType,
-        state: mediaRecorder.state
-      });
-
       // Set up event handlers
       mediaRecorder.ondataavailable = async (event) => {
         const chunkIndex = chunkIndexRef.current++;
-        console.log(`📦 Data available - chunk ${chunkIndex}, size: ${event.data.size}`);
         
         if (event.data && event.data.size > 0) {
           // Store chunk in memory
@@ -251,27 +225,26 @@ useEffect(() => {
             sendChunkToServer(chunkIndex, event.data);
           }, 100);
         } else {
-          console.log(`⚠️ Empty chunk received at index ${chunkIndex}`);
+          console.log(`index ${chunkIndex}`);
         }
       };
 
       mediaRecorder.onstart = () => {
-        console.log('▶️ MediaRecorder started');
+        console.log('MediaRecorder started');
       };
 
       mediaRecorder.onstop = () => {
-        console.log('⏹️ MediaRecorder stopped, total chunks:', recordedChunksRef.current.length);
+        console.log('total chunks:', recordedChunksRef.current.length);
       };
 
       mediaRecorder.onerror = (event) => {
-        console.error('❌ MediaRecorder error:', event);
+        console.error('error', event);
       };
 
       // Store reference and start recording
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start(2000); // 2-second chunks
       
-      console.log('🎬 MediaRecorder.start() called with 2000ms interval');
 
       setRecordingState(prev => ({
         ...prev,
@@ -284,7 +257,7 @@ useEffect(() => {
       onRecordingStart?.();
 
     } catch (err) {
-      console.error('❌ Start recording error:', err);
+      console.error('recording error:', err);
       const errorMsg = 'Failed to start recording';
       setError(errorMsg);
       onError?.(errorMsg);
@@ -294,12 +267,10 @@ useEffect(() => {
   // Stop recording
   const stopRecording = useCallback(async () => {
     if (!mediaRecorderRef.current || !recordingState.isRecording) {
-      console.log('❌ Cannot stop recording - no active recording');
       return;
     }
 
     try {
-      console.log('⏹️ Stopping recording...');
       setRecordingState(prev => ({ ...prev, isProcessing: true }));
 
       const mediaRecorder = mediaRecorderRef.current;
@@ -307,7 +278,6 @@ useEffect(() => {
       // Wait for stop event
       const stopPromise = new Promise<void>((resolve) => {
         mediaRecorder.onstop = () => {
-          console.log('✅ MediaRecorder stop event fired');
           resolve();
         };
       });
@@ -316,25 +286,20 @@ useEffect(() => {
       await stopPromise;
       
       // Wait for any final chunks
-      console.log('⏳ Waiting for final chunks...');
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       if (recordedChunksRef.current.length === 0) {
         throw new Error('No chunks were recorded');
       }
 
-      console.log(`📦 Total recorded chunks: ${recordedChunksRef.current.length}`);
-
       // Create final blob
       const mimeType = 'video/webm';
       const combinedBlob = new Blob(recordedChunksRef.current, { type: mimeType });
-      console.log(`🎥 Combined blob size: ${combinedBlob.size} bytes`);
 
       // Upload final recording to server
       const formData = new FormData();
       formData.append('recording', combinedBlob, `interview-${interviewId}.webm`);
 
-      console.log('🌐 Uploading final recording to server...');
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/interviews/${interviewId}/recordings/final`,
         {
@@ -343,14 +308,12 @@ useEffect(() => {
         }
       );
 
-      console.log('📡 Final upload response status:', response.status);
 
       if (!response.ok) {
         throw new Error('Failed to upload final recording to server');
       }
 
       const result = await response.json();
-      console.log('✅ Final upload result:', result);
       
       // Cleanup
       recordedChunksRef.current = [];
@@ -368,7 +331,7 @@ useEffect(() => {
       onRecordingStop?.(result.recording);
 
     } catch (err) {
-      console.error('❌ Stop recording error:', err);
+      console.error('error', err);
       const errorMsg = 'Failed to stop recording';
       setError(errorMsg);
       onError?.(errorMsg);
@@ -394,7 +357,6 @@ useEffect(() => {
     
     return () => {
       if (streamRef.current) {
-        console.log('🛑 Cleaning up media stream');
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
@@ -405,7 +367,6 @@ useEffect(() => {
     // Prevent page refresh/navigation during recording
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (recordingState.isRecording) {
-        console.log('⚠️ Page unload detected during recording');
         
         // Try to finalize recording synchronously
         if (recordedChunksRef.current.length > 0) {
@@ -416,12 +377,11 @@ useEffect(() => {
           const formData = new FormData();
           formData.append('recording', combinedBlob, `interview-${interviewId}-interrupted.webm`);
           
-          console.log('📡 Sending recording via beacon');
           const sent = navigator.sendBeacon(
             `${process.env.NEXT_PUBLIC_API_URL}/api/interviews/${interviewId}/recordings/final`,
             formData
           );
-          console.log('📡 Beacon sent:', sent);
+          console.log(sent);
         }
         
         e.preventDefault();
@@ -433,10 +393,8 @@ useEffect(() => {
     // Add visibility change handler for recovery
     const handleVisibilityChange = () => {
       if (document.hidden && recordingState.isRecording) {
-        console.log('⚠️ Page hidden during recording - continuing in background');
         setIsPageHidden(true);
       } else if (!document.hidden && recordingState.isRecording) {
-        console.log('✅ Page visible again - recording still active');
         setIsPageHidden(false);
       }
     };
@@ -464,7 +422,7 @@ useEffect(() => {
 
   // Debug: Log current state
   useEffect(() => {
-    console.log('🔍 Current state:', {
+    console.log('Current state:', {
       mediaReady,
       isRecording: recordingState.isRecording,
       chunkCount: recordingState.chunkCount,

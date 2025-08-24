@@ -33,12 +33,10 @@ const diskUpload = multer({
 const validateVideoFile = async (filePath) => {
   try {
     const stats = fs.statSync(filePath);
-    console.log(`📊 File stats: ${stats.size} bytes`);
     
     // Read first few bytes to check WebM signature
     const buffer = fs.readFileSync(filePath, { start: 0, end: 32 });
     const signature = buffer.toString('hex');
-    console.log(`🔍 File signature: ${signature.substring(0, 16)}`);
     
     return {
       isValid: true,
@@ -46,7 +44,7 @@ const validateVideoFile = async (filePath) => {
       signature: signature.substring(0, 16)
     };
   } catch (error) {
-    console.error('❌ Video validation error:', error);
+    console.error('Video validation error:', error);
     return {
       isValid: false,
       error: error.message
@@ -66,8 +64,6 @@ router.post('/interviews/:interviewId/recordings/start', async (req, res) => {
       });
     }
 
-    console.log(`🎬 Starting recording session for interview: ${interviewId}`);
-
     let recording = await Recording.findOne({ interviewId });
     
     if (!recording) {
@@ -77,9 +73,8 @@ router.post('/interviews/:interviewId/recordings/start', async (req, res) => {
         status: 'uploading'
       });
       await recording.save();
-      console.log(`✅ Created new recording document: ${recording._id}`);
     } else {
-      console.log(`🔄 Found existing recording: ${recording._id}`);
+      console.log(`Existing recording: ${recording._id}`);
     }
 
     res.json({
@@ -89,7 +84,6 @@ router.post('/interviews/:interviewId/recordings/start', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Start recording error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to start recording session',
@@ -119,8 +113,6 @@ router.post('/interviews/:interviewId/recordings/chunk', diskUpload.single('chun
       });
     }
 
-    console.log(`📦 Received chunk ${chunkIndex} for interview ${interviewId} (${chunkData.size} bytes)`);
-
     // Update recording with chunk info
     await Recording.findOneAndUpdate(
       { interviewId },
@@ -138,7 +130,6 @@ router.post('/interviews/:interviewId/recordings/chunk', diskUpload.single('chun
     });
 
   } catch (error) {
-    console.error('❌ Upload chunk error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to upload chunk',
@@ -154,11 +145,11 @@ router.post('/interviews/:interviewId/recordings/final', memoryUpload.single('re
   try {
     const recordingFile = req.file;
 
-    console.log(`🎥 === FINAL RECORDING UPLOAD START ===`);
+    console.log(`=== FINAL RECORDING UPLOAD START ===`);
     console.log(`📋 Interview ID: ${interviewId}`);
 
     if (!interviewId) {
-      console.log(`❌ No interview ID provided`);
+      console.log(`No ID provided`);
       return res.status(400).json({
         success: false,
         message: 'Interview ID is required'
@@ -166,35 +157,26 @@ router.post('/interviews/:interviewId/recordings/final', memoryUpload.single('re
     }
 
     if (!recordingFile) {
-      console.log(`❌ No recording file in request`);
+      console.log(`No recording file in request`);
       return res.status(400).json({
         success: false,
         message: 'No recording file provided'
       });
     }
 
-    console.log(`📊 Received file details:`);
-    console.log(`  - Size: ${recordingFile.size} bytes (${(recordingFile.size / 1024 / 1024).toFixed(2)} MB)`);
-    console.log(`  - MIME type: ${recordingFile.mimetype}`);
-    console.log(`  - Original name: ${recordingFile.originalname}`);
-
     // Find recording
     const recording = await Recording.findOne({ interviewId });
     if (!recording) {
-      console.log(`❌ Recording document not found for interview: ${interviewId}`);
       return res.status(404).json({
         success: false,
         message: 'Recording session not found'
       });
     }
 
-    console.log(`✅ Found recording document: ${recording._id}`);
-
     // Create temp directory
     const tempDir = path.join(__dirname, '..', 'temp');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
-      console.log(`📁 Created temp directory: ${tempDir}`);
     }
 
     // Determine file extension
@@ -212,15 +194,11 @@ router.post('/interviews/:interviewId/recordings/final', memoryUpload.single('re
     fs.writeFileSync(tempFilePath, recordingFile.buffer);
     
     const writtenStats = fs.statSync(tempFilePath);
-    console.log(`✅ File written successfully: ${writtenStats.size} bytes`);
+    console.log(`${writtenStats.size}`);
 
-    // Validate video file
-    console.log(`🔍 Validating video file...`);
     const validation = await validateVideoFile(tempFilePath);
-    console.log(`🔍 Validation result:`, validation);
 
     if (!validation.isValid) {
-      console.log(`❌ Video validation failed: ${validation.error}`);
       fs.unlinkSync(tempFilePath);
       return res.status(400).json({
         success: false,
@@ -230,12 +208,10 @@ router.post('/interviews/:interviewId/recordings/final', memoryUpload.single('re
     }
 
     // Upload to S3
-    console.log(`☁️ Starting S3 upload...`);
     const uploadResult = await s3Service.uploadRecording(tempFilePath, interviewId);
-    console.log(`☁️ S3 upload result:`, uploadResult);
+    console.log(`S3 result:`, uploadResult);
 
     if (!uploadResult.success) {
-      console.log(`❌ S3 upload failed`);
       fs.unlinkSync(tempFilePath);
       
       await Recording.findOneAndUpdate(
@@ -248,9 +224,6 @@ router.post('/interviews/:interviewId/recordings/final', memoryUpload.single('re
         message: 'Failed to upload recording to S3'
       });
     }
-
-    console.log(`✅ S3 upload successful: ${uploadResult.s3Key}`);
-
     // Update recording with S3 details
     const updatedRecording = await Recording.findOneAndUpdate(
       { interviewId },
@@ -271,10 +244,6 @@ router.post('/interviews/:interviewId/recordings/final', memoryUpload.single('re
 
     // Cleanup temp file
     fs.unlinkSync(tempFilePath);
-    console.log(`🗑️ Cleaned up temp file`);
-
-    console.log(`🎉 === FINAL RECORDING UPLOAD COMPLETE ===`);
-
     res.json({
       success: true,
       recording: {
@@ -291,8 +260,7 @@ router.post('/interviews/:interviewId/recordings/final', memoryUpload.single('re
     });
 
   } catch (error) {
-    console.error('❌ === FINAL RECORDING UPLOAD ERROR ===');
-    console.error('Error details:', error);
+    console.error('Error', error);
     
     try {
       await Recording.findOneAndUpdate(
@@ -333,7 +301,6 @@ router.get('/recordings', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Get all recordings error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch recordings',
@@ -374,7 +341,6 @@ router.get('/recordings/:recordingId/download', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Download recording error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to generate download link',

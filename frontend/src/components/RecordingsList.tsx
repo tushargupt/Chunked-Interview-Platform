@@ -31,7 +31,7 @@ export default function RecordingsList() {
       setRecordings(data.recordings || []);
       setError(null);
     } catch (err) {
-      console.error('Fetch recordings error:', err);
+      console.error('error:', err);
       setError('Failed to load recordings');
     } finally {
       setLoading(false);
@@ -61,7 +61,7 @@ export default function RecordingsList() {
         document.body.removeChild(link);
       }
     } catch (error) {
-      console.error('Download error:', error);
+      console.error(error);
       alert('Failed to download recording');
     }
   };

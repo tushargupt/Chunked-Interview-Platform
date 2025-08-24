@@ -42,7 +42,6 @@ class S3Service {
       };
 
     } catch (error) {
-      console.error('S3 Upload Error:', error);
       throw new Error(`S3 upload failed: ${error.message}`);
     }
   }
@@ -58,7 +57,6 @@ class S3Service {
       const url = await this.s3.getSignedUrlPromise('getObject', params);
       return url;
     } catch (error) {
-      console.error('Generate download URL error:', error);
       throw new Error(`Failed to generate download URL: ${error.message}`);
     }
   }
@@ -73,7 +71,6 @@ class S3Service {
       await this.s3.deleteObject(params).promise();
       return true;
     } catch (error) {
-      console.error('S3 Delete Error:', error);
       return false;
     }
   }
@@ -83,7 +80,6 @@ class S3Service {
       await this.s3.headBucket({ Bucket: this.bucketName }).promise();
       return true;
     } catch (error) {
-      console.error('S3 Bucket Access Error:', error);
       return false;
     }
   }

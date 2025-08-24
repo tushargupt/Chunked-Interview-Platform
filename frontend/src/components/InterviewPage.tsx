@@ -46,7 +46,7 @@ export default function InterviewPage({ interviewId: initialInterviewId }: Inter
           sessionStorage.removeItem('activeRecording');
         }
       } catch (e) {
-        console.error('Error checking interrupted recording:', e);
+        console.error('interrupted recording:', e);
         sessionStorage.removeItem('activeRecording');
       }
     }
@@ -64,7 +64,7 @@ export default function InterviewPage({ interviewId: initialInterviewId }: Inter
         }
       );
     } catch (error) {
-      console.error('Error finalizing interrupted recording:', error);
+      console.error('recording:', error);
     }
   };
 
@@ -119,7 +119,7 @@ export default function InterviewPage({ interviewId: initialInterviewId }: Inter
         document.body.removeChild(link);
       }
     } catch (error) {
-      console.error('Download error:', error);
+      console.error(error);
       alert('Failed to download recording');
     }
   };
