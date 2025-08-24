@@ -133,42 +133,57 @@ export default function ChunkedRecorder({
 
   // Initialize media stream
   const initializeMedia = useCallback(async () => {
-    try {
-      console.log('🎬 Initializing media stream...');
-      setError(null);
-      
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 }
-        },
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100
-        }
-      });
-
-      console.log('✅ Media stream obtained successfully');
-      console.log('📹 Video tracks:', stream.getVideoTracks().length);
-      console.log('🎵 Audio tracks:', stream.getAudioTracks().length);
-
-      streamRef.current = stream;
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        console.log('📺 Video element connected to stream');
+  try {
+    console.log('🎬 Initializing media stream...');
+    setError(null);
+    
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30 }
+      },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 44100
       }
+    });
 
-      setMediaReady(true);
-    } catch (err) {
-      console.error('❌ Media initialization error:', err);
-      const errorMsg = 'Failed to access camera and microphone. Please ensure permissions are granted.';
-      setError(errorMsg);
-      onError?.(errorMsg);
+    console.log('✅ Media stream obtained successfully');
+    console.log('📹 Video tracks:', stream.getVideoTracks().length);
+    console.log('🎵 Audio tracks:', stream.getAudioTracks().length);
+
+    streamRef.current = stream;
+
+    console.log('🎥 Setting up video preview...', videoRef.current); // This should now not be null
+    
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      console.log('📺 Video element connected to stream');
     }
-  }, [onError]);
+
+    setMediaReady(true);
+  } catch (err) {
+    console.error('❌ Media initialization error:', err);
+    const errorMsg = 'Failed to access camera and microphone. Please ensure permissions are granted.';
+    setError(errorMsg);
+    onError?.(errorMsg);
+  }
+}, []); // Remove onError from dependencies
+
+// Initialize media on mount
+useEffect(() => {
+  console.log('🔄 Component mounted, initializing...');
+  initializeMedia();
+  
+  return () => {
+    if (streamRef.current) {
+      console.log('🛑 Cleaning up media stream');
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+  };
+}, [initializeMedia]); // Add initializeMedia back as dependency so it runs after render
 
   // Start recording
   const startRecording = useCallback(async () => {
